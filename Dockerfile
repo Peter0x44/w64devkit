@@ -476,7 +476,8 @@ RUN cat $PREFIX/src/cppcheck-*.patch | patch -p1 \
 
 WORKDIR /
 RUN rm -rf $PREFIX/share/man/ $PREFIX/share/info/ $PREFIX/share/gcc-* \
- && rm -rf $PREFIX/lib/*.a $PREFIX/lib/*.la $PREFIX/include/*.h
+ && rm -rf $PREFIX/lib/*.a $PREFIX/lib/*.la $PREFIX/include/*.h \
+ && rm -rf $PREFIX/libexec/$ARCH/gcc/$GCC_VERSION/install-tools
 COPY README.md Dockerfile src/w64devkit.ini $PREFIX/
 RUN printf "id ICON \"$PREFIX/src/w64devkit.ico\"" >w64devkit.rc \
  && $ARCH-windres -o w64devkit.o w64devkit.rc \
