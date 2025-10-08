@@ -19,7 +19,7 @@ ARG PDCURSES_VERSION=3.9
 ARG VIM_VERSION=9.0
 
 RUN apt-get update && apt-get install --yes --no-install-recommends \
-  build-essential curl libgmp-dev libmpc-dev libmpfr-dev m4 p7zip-full
+  build-essential curl gdc libgmp-dev libmpc-dev libmpfr-dev m4 p7zip-full
 
 # Download, verify, and unpack
 
@@ -99,8 +99,9 @@ WORKDIR /bootstrap
 RUN ln -s /bootstrap mingw
 
 WORKDIR /x-gcc
-COPY src/gcc-*.patch $PREFIX/src/
+COPY src/gcc-*.patch src/libphobos-*.patch $PREFIX/src/
 RUN cat $PREFIX/src/gcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
+ && cat $PREFIX/src/libphobos-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
  && /gcc-$GCC_VERSION/configure \
         --prefix=/bootstrap \
         --with-sysroot=/bootstrap \
@@ -108,8 +109,10 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
         --enable-static \
         --disable-shared \
         --with-pic \
-        --enable-languages=c,c++,fortran \
+        --enable-languages=c,c++,d,fortran \
         --enable-libgomp \
+        --enable-libphobos \
+        --with-libphobos-druntime-only \
         --enable-threads=posix \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
@@ -262,7 +265,7 @@ WORKDIR /gcc
 COPY src/crossgcc-*.patch $PREFIX/src/
 RUN echo 'BEGIN {print "pecoff"}' \
          >/gcc-$GCC_VERSION/libbacktrace/filetype.awk \
- && cat $PREFIX/src/crossgcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
+ && cat $PREFIX/src/crossgcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 --binary \
  && /gcc-$GCC_VERSION/configure \
         --prefix=$PREFIX \
         --with-sysroot=$PREFIX \
@@ -275,8 +278,9 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --with-gmp=/deps \
         --with-mpc=/deps \
         --with-mpfr=/deps \
-        --enable-languages=c,c++,fortran \
+        --enable-languages=c,c++,d,fortran \
         --enable-libgomp \
+        --enable-libphobos \
         --enable-threads=posix \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
@@ -312,7 +316,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
         -Os -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/c89.exe $PREFIX/src/alias.c -lkernel32 \
  && printf '%s\n' addr2line ar as c++filt cpp dlltool dllwrap elfedit g++ \
-      gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool gendef gfortran \
+      gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool gdc gendef gfortran \
       ld nm objcopy objdump ranlib readelf size strings strip uuidgen widl \
       windmc windres \
     | xargs -I{} -P$(nproc) \
