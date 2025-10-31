@@ -286,12 +286,12 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --disable-nls \
         --disable-win32-registry \
         --enable-mingw-wildcard \
-        CFLAGS_FOR_TARGET="-Os" \
-        CXXFLAGS_FOR_TARGET="-Os" \
+        CFLAGS_FOR_TARGET="-O2 -flto" \
+        CXXFLAGS_FOR_TARGET="-O2 -flto" \
         LDFLAGS_FOR_TARGET="-s" \
-        CFLAGS="-Os -flto" \
-        CXXFLAGS="-Os -flto" \
-        LDFLAGS="-s -flto" \
+        CFLAGS="-O2 -flto" \
+        CXXFLAGS="-O2 -flto" \
+        LDFLAGS="-s" \
  && make -j$(nproc) \
  && make install \
  && rm -f $PREFIX/bin/ld.bfd.exe \
