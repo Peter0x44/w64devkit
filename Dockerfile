@@ -115,7 +115,7 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
         --disable-nls \
-        --disable-lto \
+        --enable-lto \
         --disable-multilib \
         CFLAGS_FOR_TARGET="-Os" \
         CXXFLAGS_FOR_TARGET="-Os" \
@@ -281,7 +281,7 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
-        --disable-lto \
+        --enable-lto \
         --disable-multilib \
         --disable-nls \
         --disable-win32-registry \
@@ -289,9 +289,9 @@ RUN echo 'BEGIN {print "pecoff"}' \
         CFLAGS_FOR_TARGET="-Os" \
         CXXFLAGS_FOR_TARGET="-Os" \
         LDFLAGS_FOR_TARGET="-s" \
-        CFLAGS="-Os" \
-        CXXFLAGS="-Os" \
-        LDFLAGS="-s" \
+        CFLAGS="-Os -flto" \
+        CXXFLAGS="-Os -flto" \
+        LDFLAGS="-s -flto" \
  && make -j$(nproc) \
  && make install \
  && rm -f $PREFIX/bin/ld.bfd.exe \
