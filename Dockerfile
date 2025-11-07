@@ -11,6 +11,7 @@ ARG GCC_VERSION=15.2.0
 ARG GDB_VERSION=16.2
 ARG GMP_VERSION=6.3.0
 ARG LIBICONV_VERSION=1.18
+ARG M4_VERSION=1.4.20
 ARG MAKE_VERSION=4.4.1
 ARG MINGW_VERSION=13.0.0
 ARG MPC_VERSION=1.3.1
@@ -34,6 +35,7 @@ RUN curl --insecure --location --remote-name-all --remote-header-name \
     https://ftpmirror.gnu.org/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz \
     https://ftpmirror.gnu.org/gnu/make/make-$MAKE_VERSION.tar.gz \
     https://ftpmirror.gnu.org/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz \
+    https://ftpmirror.gnu.org/gnu/m4/m4-$M4_VERSION.tar.xz \
     https://frippery.org/files/busybox/busybox-w32-$BUSYBOX_VERSION.tgz \
     https://ftp.nluug.nl/pub/vim/unix/vim-$VIM_VERSION.tar.bz2 \
     https://github.com/universal-ctags/ctags/archive/refs/tags/v$CTAGS_VERSION.tar.gz \
@@ -53,6 +55,7 @@ RUN sha256sum -c $PREFIX/src/SHA256SUMS \
  && tar xzf mpc-$MPC_VERSION.tar.gz \
  && tar xJf mpfr-$MPFR_VERSION.tar.xz \
  && tar xzf make-$MAKE_VERSION.tar.gz \
+ && tar xJf m4-$M4_VERSION.tar.xz \
  && tar xjf mingw-w64-v$MINGW_VERSION.tar.bz2 \
  && tar xzf PDCurses-$PDCURSES_VERSION.tar.gz \
  && tar xjf vim-$VIM_VERSION.tar.bz2
@@ -476,6 +479,14 @@ RUN sed -i /RT_MANIFEST/d win32/ctags.rc \
         CC=$ARCH-gcc WINDRES=$ARCH-windres \
         OPT= CFLAGS=-Os LDFLAGS=-s \
  && cp ctags.exe $PREFIX/bin/
+
+WORKDIR /m4-$M4_VERSION
+RUN ./configure \
+        --host=$ARCH \
+        --prefix=$PREFIX \
+        --disable-nls \
+ && make -j$(nproc) \
+ && make install-strip
 
 WORKDIR /7z
 COPY src/7z.mak $PREFIX/src/
