@@ -1,0 +1,32 @@
+diff --git a/gcc/cp/pt.cc b/gcc/cp/pt.cc
+index 759418c344e..37150e11e76 100644
+--- a/gcc/cp/pt.cc
++++ b/gcc/cp/pt.cc
+@@ -15520,7 +15520,7 @@ enclosing_instantiation_of (tree tctx)
+   for (; fn; fn = decl_function_context (fn))
+     if (DECL_SOURCE_LOCATION (fn) == DECL_SOURCE_LOCATION (tctx))
+       return fn;
+-  gcc_unreachable ();
++  return NULL_TREE;
+ }
+ 
+ /* Substitute the ARGS into the T, which is a _DECL.  Return the
+@@ -15938,6 +15938,8 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain,
+ 	    if (TREE_STATIC (t))
+ 	      {
+ 		tree fn = enclosing_instantiation_of (DECL_CONTEXT (t));
++		if (fn == NULL_TREE)
++		  fn = tsubst (DECL_CONTEXT (t), args, complain, in_decl);
+ 		if (fn != current_function_decl)
+ 		  ctx = fn;
+ 	      }
+@@ -22021,7 +22023,7 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
+ 		      error_at (loc, "call to %<__builtin_operator_new%> "
+ 				     "does not select replaceable global "
+ 				     "allocation function");
+-		    else 
++		    else
+ 		      error_at (loc, "call to %<__builtin_operator_delete%> "
+ 				     "does not select replaceable global "
+ 				     "deallocation function");
+
