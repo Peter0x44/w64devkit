@@ -115,7 +115,7 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
         --disable-nls \
-        --disable-lto \
+        --enable-lto \
         --disable-multilib \
         CFLAGS_FOR_TARGET="-Os" \
         CXXFLAGS_FOR_TARGET="-Os" \
@@ -281,16 +281,16 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
-        --disable-lto \
+        --enable-lto \
         --disable-multilib \
         --disable-nls \
         --disable-win32-registry \
         --enable-mingw-wildcard \
-        CFLAGS_FOR_TARGET="-Os" \
-        CXXFLAGS_FOR_TARGET="-Os" \
+        CFLAGS_FOR_TARGET="-Os -fno-declone-ctor-dtor" \
+        CXXFLAGS_FOR_TARGET="-Os -fno-declone-ctor-dtor" \
         LDFLAGS_FOR_TARGET="-s" \
-        CFLAGS="-Os" \
-        CXXFLAGS="-Os" \
+        CFLAGS="-Os -fno-declone-ctor-dtor" \
+        CXXFLAGS="-Os -fno-declone-ctor-dtor" \
         LDFLAGS="-s" \
  && make -j$(nproc) \
  && make install \
