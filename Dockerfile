@@ -108,7 +108,7 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/gcc-$GCC_VERSION -p1 \
         --enable-static \
         --disable-shared \
         --with-pic \
-        --enable-languages=c,c++,fortran \
+        --enable-languages=c,c++,fortran,objc,obj-c++ \
         --enable-libgomp \
         --enable-threads=posix \
         --enable-version-specific-runtime-libs \
@@ -275,7 +275,7 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --with-gmp=/deps \
         --with-mpc=/deps \
         --with-mpfr=/deps \
-        --enable-languages=c,c++,fortran \
+        --enable-languages=c,c++,fortran,objc,obj-c++ \
         --enable-libgomp \
         --enable-threads=posix \
         --enable-version-specific-runtime-libs \
