@@ -491,7 +491,7 @@ RUN /dl/ncurses/configure \
         --enable-widec \
         --enable-term-driver \
         --enable-sp-funcs \
-        --with-fallbacks=ms-terminal \
+        --with-fallbacks=ms-terminal,xterm,xterm-256color,vt100,ansi \
         --without-progs \
         --without-tests \
         --without-manpages \
