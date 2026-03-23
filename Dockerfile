@@ -246,6 +246,7 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
         --disable-nls \
         --disable-lto \
         --disable-multilib \
+        --disable-fixincludes \
         CFLAGS_FOR_TARGET="-O2" \
         CXXFLAGS_FOR_TARGET="-O2" \
         LDFLAGS_FOR_TARGET="-s" \
@@ -416,6 +417,7 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --disable-nls \
         --disable-win32-registry \
         --enable-mingw-wildcard \
+        --disable-fixincludes \
         CFLAGS_FOR_TARGET="-O2" \
         CXXFLAGS_FOR_TARGET="-O2" \
         LDFLAGS_FOR_TARGET="-s" \
