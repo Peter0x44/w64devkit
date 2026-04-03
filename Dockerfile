@@ -212,6 +212,8 @@ RUN /dl/binutils/configure \
         --target=$ARCH \
         --disable-nls \
         --with-static-standard-libraries \
+        --enable-plugins \
+        --enable-default-plugin \
         --disable-multilib \
  && make MAKEINFO=true -j$(nproc) \
  && make MAKEINFO=true install
@@ -312,6 +314,8 @@ RUN /dl/binutils/configure \
         --target=$ARCH \
         --disable-nls \
         --with-static-standard-libraries \
+        --enable-plugins \
+        --enable-default-plugin \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
  && make MAKEINFO=true tooldir=$PREFIX -j$(nproc) \
