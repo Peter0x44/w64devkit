@@ -1,0 +1,46 @@
+From 7767436fc308dedb14c04f8a139b2f66295c6e9e Mon Sep 17 00:00:00 2001
+From: Peter Damianov <peter0x44@disroot.org>
+Date: Sat, 4 Apr 2026 00:48:57 +0100
+Subject: [PATCH] mingw: Remove obsolete STMP_FIXINC override from t-cygming
+
+The STMP_FIXINC assignment in t-cygming dates back to
+r0-48723-g70e5e841b8b931, which introduced the shared cygwin/mingw
+makefile fragment and used it to force fixincludes on for those
+targets.
+
+That predates r0-63200-g53c7ffe7dd1c28, which made configure default
+STMP_FIXINC to stmp-fixinc, so the t-cygming assignment is now
+redundant in normal builds.  Once --disable-fixincludes was added by
+r13-2319-gbe9dd80f933480, the old override became incorrect as well,
+because it forced stmp-fixinc back on for targets using t-cygming.
+Configuring for mingw targets with --disable-fixincludes would then
+fail with:
+
+make[1]: No rule to make target
+'../build-x86_64-pc-linux-gnu/fixincludes/fixinc.sh', needed by 'stmp-fixinc'.
+Stop.
+
+Remove the obsolete assignment so the configure-time default is used,
+including when honoring an explicit --disable-fixincludes.
+
+gcc/ChangeLog:
+
+	* config/mingw/t-cygming: Remove obsolete STMP_FIXINC
+	override.
+---
+ gcc/config/mingw/t-cygming | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/gcc/config/mingw/t-cygming b/gcc/config/mingw/t-cygming
+index be3323d143a..4d0f99797c3 100644
+--- a/gcc/config/mingw/t-cygming
++++ b/gcc/config/mingw/t-cygming
+@@ -61,5 +61,3 @@ msformat-c.o: $(srcdir)/config/mingw/msformat-c.cc $(CONFIG_H) $(SYSTEM_H) \
+   $(TM_P_H) $(HASHTAB_H) $(GGC_H)
+ 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+ 	$(srcdir)/config/mingw/msformat-c.cc
+-
+-STMP_FIXINC=stmp-fixinc
+-- 
+2.53.0
+
