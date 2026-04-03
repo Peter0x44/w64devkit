@@ -249,6 +249,7 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
+        --disable-fixincludes \
         --disable-nls \
         --disable-lto \
         --disable-multilib \
@@ -417,6 +418,7 @@ RUN echo 'BEGIN {print "pecoff"}' \
         --enable-version-specific-runtime-libs \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
+        --disable-fixincludes \
         --disable-lto \
         --disable-multilib \
         --disable-nls \
