@@ -6,8 +6,8 @@ ARG PREFIX
 ENV PREFIX=$PREFIX
 
 RUN apt-get update && apt-get install --yes --no-install-recommends \
-  build-essential cmake curl libgmp-dev libmpc-dev libmpfr-dev m4 p7zip-full \
-  python3 scons
+       bison build-essential cmake curl flex libgmp-dev libmpc-dev libmpfr-dev m4 \
+       p7zip-full python3 scons
 
 COPY src/w64devkit.ico src/alias.c $PREFIX/src/
 
