@@ -17,8 +17,9 @@ COPY src/w64devkit.ico src/alias.c $PREFIX/src/
 # Source directories are normalized (no version in the directory name).
 
 FROM base AS dl-cross
-ARG BINUTILS_VERSION=2.46.1 \
-    BINUTILS_SHA256=e127a709cba24c76de8936cb7083dd768f28cd37eb010492e2f19b71eb1294e4 \
+ARG BINUTILS_GIT_COMMIT=185f2c03f6dbbb1d739be919cf625d687872b50d \
+       BINUTILS_ARCHIVE=binutils-gdb-185f2c03f6dbbb1d739be919cf625d687872b50d.tar.gz \
+       BINUTILS_SHA256=b3819593c87ba0851aaf9d4123b140f3c752e85c380eae7f646f1082357c1f94 \
     GCC_VERSION=16.1.0 \
     GCC_SHA256=50efb4d94c3397aff3b0d61a5abd748b4dd31d9d3f2ab7be05b171d36a510f79 \
     GMP_VERSION=6.3.0 \
@@ -30,15 +31,17 @@ ARG BINUTILS_VERSION=2.46.1 \
     MPFR_VERSION=4.2.2 \
     MPFR_SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz \
+RUN curl --insecure --location \
+         --output $BINUTILS_ARCHIVE \
+         https://github.com/gnutools/binutils-gdb/archive/$BINUTILS_GIT_COMMIT.tar.gz \
+ && curl --insecure --location --remote-name-all --remote-header-name \
     https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz \
     https://ftp.gnu.org/gnu/gmp/gmp-$GMP_VERSION.tar.xz \
     https://ftp.gnu.org/gnu/mpc/mpc-$MPC_VERSION.tar.xz \
     https://ftp.gnu.org/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz \
     https://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v$MINGW_VERSION.tar.bz2 \
  && printf '%s  %s\n' \
-      $BINUTILS_SHA256 binutils-$BINUTILS_VERSION.tar.xz \
+        $BINUTILS_SHA256 $BINUTILS_ARCHIVE \
       $GCC_SHA256 gcc-$GCC_VERSION.tar.xz \
       $GMP_SHA256 gmp-$GMP_VERSION.tar.xz \
       $MPC_SHA256 mpc-$MPC_VERSION.tar.xz \
@@ -46,7 +49,7 @@ RUN curl --insecure --location --remote-name-all --remote-header-name \
       $MINGW_SHA256 mingw-w64-v$MINGW_VERSION.tar.bz2 \
     | sha256sum -c \
  && mkdir binutils \
- && tar xJf binutils-$BINUTILS_VERSION.tar.xz -C binutils --strip-components=1 \
+ && tar xzf $BINUTILS_ARCHIVE -C binutils --strip-components=1 \
  && mkdir gcc \
  && tar xJf gcc-$GCC_VERSION.tar.xz -C gcc --strip-components=1 \
  && mkdir gmp \
