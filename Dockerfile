@@ -50,6 +50,10 @@ RUN curl --insecure --location \
     | sha256sum -c \
  && mkdir binutils \
  && tar xzf $BINUTILS_ARCHIVE -C binutils --strip-components=1 \
+ && rm -rf binutils/contrib binutils/elfcpp binutils/gdb binutils/gdbserver \
+                       binutils/gdbsupport binutils/gnulib binutils/gold \
+                       binutils/libbacktrace binutils/libdecnumber binutils/readline \
+                       binutils/sim \
  && mkdir gcc \
  && tar xJf gcc-$GCC_VERSION.tar.xz -C gcc --strip-components=1 \
  && mkdir gmp \
