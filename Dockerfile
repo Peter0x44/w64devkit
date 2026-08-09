@@ -272,6 +272,8 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
  && /dl/gcc/configure \
         --prefix=/bootstrap \
         --with-sysroot=/bootstrap \
+        --with-arch-32=pentium4 \
+        "--with-specs=%{m32:%{!D_WIN32_WINNT*:-D_WIN32_WINNT=0x0501}}" \
         --target=$ARCH \
         --enable-static \
         --disable-shared \
@@ -285,7 +287,6 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
         --disable-dependency-tracking \
         --disable-nls \
         --disable-lto \
-        --disable-multilib \
         CFLAGS_FOR_TARGET="-O2" \
         CXXFLAGS_FOR_TARGET="-O2" \
         LDFLAGS_FOR_TARGET="-s" \
@@ -298,13 +299,19 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
 ENV PATH="/bootstrap/bin:${PATH}"
 
 COPY src/libmemory.c src/libchkstk.S $PREFIX/src/
-RUN mkdir -p $PREFIX/lib \
+RUN mkdir -p $PREFIX/lib $PREFIX/lib32 /bootstrap/lib32 \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libmemory.c \
  && ln $PREFIX/lib/libmemory.a /bootstrap/lib/ \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libchkstk.S \
- && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/
+ && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/ \
+ && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
+        sh $PREFIX/src/libmemory.c \
+ && ln $PREFIX/lib32/libmemory.a /bootstrap/lib32/ \
+ && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
+        sh $PREFIX/src/libchkstk.S \
+ && ln $PREFIX/lib32/libchkstk.a /bootstrap/lib32/
 
 WORKDIR /x-mingw-crt
 RUN /dl/mingw/mingw-w64-crt/configure \
@@ -313,7 +320,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        --disable-lib32 \
+        --enable-lib32 \
         --enable-lib64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
@@ -329,6 +336,20 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
         --disable-shared \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
+ && make -j$(nproc) \
+ && make install
+
+WORKDIR /x-winpthreads32
+RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
+       --prefix=/bootstrap \
+       --libdir=/bootstrap/lib32 \
+       --with-sysroot=/bootstrap \
+       --host=$ARCH \
+       --enable-static \
+       --disable-shared \
+       CC="$ARCH-gcc -m32" \
+       CFLAGS="-O2" \
+       LDFLAGS="-s" \
  && make -j$(nproc) \
  && make install
 
@@ -417,7 +438,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        --disable-lib32 \
+        --enable-lib32 \
         --enable-lib64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
@@ -428,7 +449,11 @@ COPY src/threads.c $PREFIX/src/
 COPY src/threads.h $PREFIX/include/
 RUN $ARCH-gcc -c -Oz -I$PREFIX/include/ \
         -ffunction-sections -Wa,--no-pad-sections $PREFIX/src/threads.c \
- && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o
+ && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o \
+ && $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
+        -ffunction-sections -Wa,--no-pad-sections \
+        -o threads32.o $PREFIX/src/threads.c \
+ && $ARCH-ar r $PREFIX/lib32/libmingwex.a threads32.o
 
 WORKDIR /winpthreads
 RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
@@ -442,6 +467,20 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make -j$(nproc) \
  && make install
 
+WORKDIR /winpthreads32
+RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
+       --prefix=$PREFIX \
+       --libdir=$PREFIX/lib32 \
+       --with-sysroot=$PREFIX \
+       --host=$ARCH \
+       --enable-static \
+       --disable-shared \
+       CC="$ARCH-gcc -m32" \
+       CFLAGS="-O2" \
+       LDFLAGS="-s" \
+ && make -j$(nproc) \
+ && make install
+
 WORKDIR /gcc
 COPY src/crossgcc-*.patch $PREFIX/src/
 RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
@@ -449,6 +488,8 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --prefix=$PREFIX \
         --with-sysroot=$PREFIX \
         --with-native-system-header-dir=/include \
+        --with-arch-32=pentium4 \
+        "--with-specs=%{m32:%{!D_WIN32_WINNT*:-D_WIN32_WINNT=0x0501}}" \
         --target=$ARCH \
         --host=$ARCH \
         --enable-static \
@@ -465,7 +506,6 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --disable-libstdcxx-verbose \
         --disable-dependency-tracking \
         --disable-lto \
-        --disable-multilib \
         --disable-nls \
         --disable-win32-registry \
         --enable-mingw-wildcard \
@@ -494,15 +534,55 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
  && $ARCH-gcc -DEXE=gcc.exe -DCMD="cc -ansi" \
         -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/c89.exe $PREFIX/src/alias.c -lkernel32 \
- && printf '%s\n' addr2line ar as c++filt cpp dlltool dllwrap elfedit g++ \
+ && printf '%s\n' addr2line ar as c++filt cpp dlltool dllwrap g++ \
       gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool gendef gfortran \
-      ld nm objcopy objdump ranlib readelf size strings strip uuidgen widl \
+        ld nm objcopy objdump ranlib size strings strip uuidgen widl \
       windmc windres \
     | xargs -I{} -P$(nproc) \
           $ARCH-gcc -DEXE={}.exe -DCMD=$ARCH-{} \
             -Oz -fno-asynchronous-unwind-tables \
             -Wl,--gc-sections -s -nostdlib \
             -o $PREFIX/bin/$ARCH-{}.exe $PREFIX/src/alias.c -lkernel32
+
+# Create i686 tool aliases
+RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
+        gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
+        strip uuidgen widl windmc \
+    | xargs -I{} -P$(nproc) \
+          $ARCH-gcc -DEXE={}.exe -DCMD=i686-w64-mingw32-{} \
+            -Oz -fno-asynchronous-unwind-tables \
+            -Wl,--gc-sections -s -nostdlib \
+            -o $PREFIX/bin/i686-w64-mingw32-{}.exe \
+            $PREFIX/src/alias.c -lkernel32 \
+ && printf '%s\n' cpp gcc g++ gfortran \
+    | xargs -I{} -P$(nproc) \
+          $ARCH-gcc -DEXE={}.exe -DCMD="i686-w64-mingw32-{} -m32" \
+            -Oz -fno-asynchronous-unwind-tables \
+            -Wl,--gc-sections -s -nostdlib \
+            -o $PREFIX/bin/i686-w64-mingw32-{}.exe \
+            $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=g++.exe -DCMD="i686-w64-mingw32-c++ -m32" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-c++.exe \
+        $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=as.exe -DCMD="i686-w64-mingw32-as --32" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-as.exe \
+        $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=ld.exe -DCMD="i686-w64-mingw32-ld -m i386pe" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-ld.exe \
+        $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=dlltool.exe \
+        -DCMD="i686-w64-mingw32-dlltool -m i386 --as-flags=--32" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-dlltool.exe \
+        $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=windres.exe \
+        -DCMD="i686-w64-mingw32-windres --target=pe-i386" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-windres.exe \
+        $PREFIX/src/alias.c -lkernel32
 
 # Build some extra development tools
 
