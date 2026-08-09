@@ -254,7 +254,6 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
         --prefix=/bootstrap \
         --with-sysroot=/bootstrap \
         --with-arch-32=pentium4 \
-        "--with-specs=%{m32:%{!D_WIN32_WINNT*:-D_WIN32_WINNT=0x0501}}" \
         --target=$ARCH \
         --enable-static \
         --disable-shared \
@@ -470,7 +469,6 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --with-sysroot=$PREFIX \
         --with-native-system-header-dir=/include \
         --with-arch-32=pentium4 \
-        "--with-specs=%{m32:%{!D_WIN32_WINNT*:-D_WIN32_WINNT=0x0501}}" \
         --target=$ARCH \
         --host=$ARCH \
         --enable-static \
