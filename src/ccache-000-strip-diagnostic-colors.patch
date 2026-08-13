@@ -1,0 +1,75 @@
+From 40e5b903e768995471526b2cf85605c29499dc99 Mon Sep 17 00:00:00 2001
+From: Peter0x44 <peter0x44@disroot.org>
+Date: Thu, 13 Aug 2026 02:49:23 -0500
+Subject: [PATCH 1/2] fix: strip diagnostic colors on legacy Windows consoles
+
+Ccache forces supported compilers to produce colored diagnostics because
+their output is captured instead of written directly to the terminal. It
+later decides whether to strip the resulting ANSI sequences before
+replaying the diagnostics.
+
+On Windows, isatty alone does not mean that the console accepts ANSI
+escape sequences. A legacy console is a terminal, but it needs Win32
+console operations unless ENABLE_VIRTUAL_TERMINAL_PROCESSING is enabled.
+Replaying captured ANSI there exposes the escape sequences as text.
+
+Separate the automatic color policy from the Windows console capability
+check. Strip captured colors when color is disabled or when the
+destination is a Windows console that cannot process virtual terminal
+sequences. This preserves raw ANSI for VT-enabled consoles while giving
+legacy consoles a safe, readable fallback.
+---
+ src/ccache/argprocessing.cpp | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/ccache/argprocessing.cpp b/src/ccache/argprocessing.cpp
+index af9e0e8c..b0d7c97d 100644
+--- a/src/ccache/argprocessing.cpp
++++ b/src/ccache/argprocessing.cpp
+@@ -183,6 +183,27 @@ color_output_possible()
+          && util::to_lowercase(term_env) != "dumb";
+ }
+ 
++bool
++windows_console_needs_color_translation()
++{
++#ifdef _WIN32
++  DWORD mode;
++  HANDLE stderr_handle =
++    reinterpret_cast<HANDLE>(_get_osfhandle(STDERR_FILENO));
++  if (!GetConsoleMode(stderr_handle, &mode)) {
++    return false;
++  }
++
++#  ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
++  return !(mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING);
++#  else
++  return true;
++#  endif
++#else
++  return false;
++#endif
++}
++
+ bool
+ detect_pch(const std::string& option,
+            const std::string& arg,
+@@ -1825,10 +1846,12 @@ process_args(Context& ctx)
+     state.add_common_arg(state.explicit_language);
+   }
+ 
+-  args_info.strip_diagnostics_colors =
++  const bool colors_enabled =
+     state.color_diagnostics != ColorDiagnostics::automatic
+-      ? state.color_diagnostics == ColorDiagnostics::never
+-      : !color_output_possible();
++      ? state.color_diagnostics == ColorDiagnostics::always
++      : color_output_possible();
++  args_info.strip_diagnostics_colors =
++    !colors_enabled || windows_console_needs_color_translation();
+ 
+   // Since output is redirected, compilers will not color their output by
+   // default, so force it explicitly.
+-- 
+2.54.0.windows.1
+
