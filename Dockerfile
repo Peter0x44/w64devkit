@@ -1,4 +1,4 @@
-ARG VERSION=2.9.0 \
+ARG VERSION=2.9.1 \
     PREFIX=/w64devkit
 
 FROM debian:trixie-slim AS base
@@ -61,8 +61,8 @@ RUN curl --insecure --location --remote-name-all --remote-header-name \
 FROM base AS dl-gdb
 ARG GDB_VERSION=17.2 \
     GDB_SHA256=1c036c0d72e4b3d1fb5c94c88632add6f9d76f4d7c4d2ea793c12a9f19a3228c \
-    EXPAT_VERSION=2.8.2 \
-    EXPAT_SHA256=3ad89b8588e6644bd4e49981480d48b21289eebbcd4f0a1a4afb1c29f99b6ab4 \
+    EXPAT_VERSION=2.8.3 \
+    EXPAT_SHA256=f6256df90c906773d344da084402b7d3e4f22ed41b1a59c989098a83d3ea0c85 \
     LIBICONV_VERSION=1.19 \
     LIBICONV_SHA256=88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6
 WORKDIR /dl
@@ -534,7 +534,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
         -o $PREFIX/bin/c89.exe $PREFIX/src/alias.c -lkernel32 \
  && printf '%s\n' addr2line ar as c++filt cpp dlltool dllwrap g++ \
       gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool gendef gfortran \
-        ld nm objcopy objdump ranlib size strings strip uuidgen widl \
+      ld nm objcopy objdump ranlib size strings strip uuidgen widl \
       windmc windres \
     | xargs -I{} -P$(nproc) \
           $ARCH-gcc -DEXE={}.exe -DCMD=$ARCH-{} \
@@ -800,6 +800,8 @@ RUN make -j$(nproc) -C programs zstd \
 FROM cross AS build-ccache
 COPY --from=dl-ccache /dl/ /dl/
 COPY --from=build-zstd /deps/ /deps/
+COPY src/ccache-*.patch $PREFIX/src/
+RUN cat $PREFIX/src/ccache-*.patch | patch -d/dl/ccache -p1
 
 WORKDIR /dl/xxhash
 RUN make -j$(nproc) CC=$ARCH-gcc AR=$ARCH-ar CFLAGS="-O2" libxxhash.a \
