@@ -19,7 +19,7 @@ diff --git a/src/ccache/argprocessing.cpp b/src/ccache/argprocessing.cpp
 index 7eed1430..fd6baf2e 100644
 --- a/src/ccache/argprocessing.cpp
 +++ b/src/ccache/argprocessing.cpp
-@@ -178,9 +178,43 @@ private:
+@@ -184,9 +184,43 @@ private:
  bool
  color_output_possible()
  {
@@ -63,7 +63,7 @@ index 7eed1430..fd6baf2e 100644
  }
  
  bool
-@@ -1835,10 +1869,11 @@ process_args(Context& ctx)
+@@ -1978,10 +2012,11 @@ process_args(Context& ctx)
      state.add_common_arg(state.explicit_language);
    }
  
@@ -78,7 +78,7 @@ index 7eed1430..fd6baf2e 100644
  
    // Since output is redirected, compilers will not color their output by
    // default, so force it explicitly.
-@@ -1854,6 +1889,12 @@ process_args(Context& ctx)
+@@ -1997,6 +2032,12 @@ process_args(Context& ctx)
    } else {
      // Other compilers shouldn't output color, so no need to strip it.
      args_info.strip_diagnostics_colors = false;
@@ -95,7 +95,7 @@ diff --git a/src/ccache/argsinfo.hpp b/src/ccache/argsinfo.hpp
 index 7db64d0c..c8f727d7 100644
 --- a/src/ccache/argsinfo.hpp
 +++ b/src/ccache/argsinfo.hpp
-@@ -118,6 +118,9 @@ struct ArgsInfo
+@@ -122,6 +122,9 @@ struct ArgsInfo
    // Whether to strip color codes from diagnostic messages on output.
    bool strip_diagnostics_colors = false;
  
