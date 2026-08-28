@@ -31,15 +31,15 @@ ARG BINUTILS_VERSION=2.47 \
     MPFR_SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
 WORKDIR /dl
 ADD --checksum=sha256:$BINUTILS_SHA256 \
-    https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz ./
 ADD --checksum=sha256:$GCC_SHA256 \
-    https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz ./
 ADD --checksum=sha256:$GMP_SHA256 \
-    https://ftp.gnu.org/gnu/gmp/gmp-$GMP_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/gmp/gmp-$GMP_VERSION.tar.xz ./
 ADD --checksum=sha256:$MPC_SHA256 \
-    https://ftp.gnu.org/gnu/mpc/mpc-$MPC_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/mpc/mpc-$MPC_VERSION.tar.xz ./
 ADD --checksum=sha256:$MPFR_SHA256 \
-    https://ftp.gnu.org/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz ./
 ADD --checksum=sha256:$MINGW_SHA256 \
     https://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v$MINGW_VERSION.tar.bz2 ./
 RUN mkdir binutils \
@@ -65,11 +65,11 @@ ARG GDB_VERSION=17.2 \
     LIBICONV_SHA256=88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6
 WORKDIR /dl
 ADD --checksum=sha256:$GDB_SHA256 \
-    https://ftp.gnu.org/gnu/gdb/gdb-$GDB_VERSION.tar.xz ./
+    https://ftp.wayne.edu/gnu/gdb/gdb-$GDB_VERSION.tar.xz ./
 ADD --checksum=sha256:$EXPAT_SHA256 \
     https://github.com/libexpat/libexpat/releases/download/$EXPAT_TAG/expat-$EXPAT_VERSION.tar.xz ./
 ADD --checksum=sha256:$LIBICONV_SHA256 \
-    https://ftp.gnu.org/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz ./
+    https://ftp.wayne.edu/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz ./
 RUN mkdir gdb \
  && tar xJf gdb-$GDB_VERSION.tar.xz -C gdb --strip-components=1 \
  && mkdir expat \
@@ -91,7 +91,7 @@ ARG MAKE_VERSION=4.4.1 \
     MAKE_SHA256=dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3
 WORKDIR /dl
 ADD --checksum=sha256:$MAKE_SHA256 \
-    https://ftp.gnu.org/gnu/make/make-$MAKE_VERSION.tar.gz ./
+    https://ftp.wayne.edu/gnu/make/make-$MAKE_VERSION.tar.gz ./
 RUN mkdir make \
  && tar xzf make-$MAKE_VERSION.tar.gz -C make --strip-components=1
 
