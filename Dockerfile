@@ -6,7 +6,7 @@ ARG PREFIX
 ENV PREFIX=$PREFIX
 
 RUN apt-get update && apt-get install --yes --no-install-recommends \
-  build-essential cmake curl libgmp-dev libmpc-dev libmpfr-dev m4 p7zip-full \
+  build-essential cmake libgmp-dev libmpc-dev libmpfr-dev m4 p7zip-full \
   python3 scons
 
 COPY src/w64devkit.ico src/alias.c $PREFIX/src/
@@ -30,22 +30,19 @@ ARG BINUTILS_VERSION=2.47 \
     MPFR_VERSION=4.2.2 \
     MPFR_SHA256=b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz \
-    https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz \
-    https://ftp.gnu.org/gnu/gmp/gmp-$GMP_VERSION.tar.xz \
-    https://ftp.gnu.org/gnu/mpc/mpc-$MPC_VERSION.tar.xz \
-    https://ftp.gnu.org/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz \
-    https://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v$MINGW_VERSION.tar.bz2 \
- && printf '%s  %s\n' \
-      $BINUTILS_SHA256 binutils-$BINUTILS_VERSION.tar.xz \
-      $GCC_SHA256 gcc-$GCC_VERSION.tar.xz \
-      $GMP_SHA256 gmp-$GMP_VERSION.tar.xz \
-      $MPC_SHA256 mpc-$MPC_VERSION.tar.xz \
-      $MPFR_SHA256 mpfr-$MPFR_VERSION.tar.xz \
-      $MINGW_SHA256 mingw-w64-v$MINGW_VERSION.tar.bz2 \
-    | sha256sum -c \
- && mkdir binutils \
+ADD --checksum=sha256:$BINUTILS_SHA256 \
+    https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz ./
+ADD --checksum=sha256:$GCC_SHA256 \
+    https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz ./
+ADD --checksum=sha256:$GMP_SHA256 \
+    https://ftp.gnu.org/gnu/gmp/gmp-$GMP_VERSION.tar.xz ./
+ADD --checksum=sha256:$MPC_SHA256 \
+    https://ftp.gnu.org/gnu/mpc/mpc-$MPC_VERSION.tar.xz ./
+ADD --checksum=sha256:$MPFR_SHA256 \
+    https://ftp.gnu.org/gnu/mpfr/mpfr-$MPFR_VERSION.tar.xz ./
+ADD --checksum=sha256:$MINGW_SHA256 \
+    https://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v$MINGW_VERSION.tar.bz2 ./
+RUN mkdir binutils \
  && tar xJf binutils-$BINUTILS_VERSION.tar.xz -C binutils --strip-components=1 \
  && mkdir gcc \
  && tar xJf gcc-$GCC_VERSION.tar.xz -C gcc --strip-components=1 \
@@ -62,20 +59,18 @@ FROM base AS dl-gdb
 ARG GDB_VERSION=17.2 \
     GDB_SHA256=1c036c0d72e4b3d1fb5c94c88632add6f9d76f4d7c4d2ea793c12a9f19a3228c \
     EXPAT_VERSION=2.8.3 \
+    EXPAT_TAG=R_2_8_3 \
     EXPAT_SHA256=f6256df90c906773d344da084402b7d3e4f22ed41b1a59c989098a83d3ea0c85 \
     LIBICONV_VERSION=1.19 \
     LIBICONV_SHA256=88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://ftp.gnu.org/gnu/gdb/gdb-$GDB_VERSION.tar.xz \
-    https://github.com/libexpat/libexpat/releases/download/R_$(echo $EXPAT_VERSION | tr . _)/expat-$EXPAT_VERSION.tar.xz \
-    https://ftp.gnu.org/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz \
- && printf '%s  %s\n' \
-      $GDB_SHA256 gdb-$GDB_VERSION.tar.xz \
-      $EXPAT_SHA256 expat-$EXPAT_VERSION.tar.xz \
-      $LIBICONV_SHA256 libiconv-$LIBICONV_VERSION.tar.gz \
-    | sha256sum -c \
- && mkdir gdb \
+ADD --checksum=sha256:$GDB_SHA256 \
+    https://ftp.gnu.org/gnu/gdb/gdb-$GDB_VERSION.tar.xz ./
+ADD --checksum=sha256:$EXPAT_SHA256 \
+    https://github.com/libexpat/libexpat/releases/download/$EXPAT_TAG/expat-$EXPAT_VERSION.tar.xz ./
+ADD --checksum=sha256:$LIBICONV_SHA256 \
+    https://ftp.gnu.org/gnu/libiconv/libiconv-$LIBICONV_VERSION.tar.gz ./
+RUN mkdir gdb \
  && tar xJf gdb-$GDB_VERSION.tar.xz -C gdb --strip-components=1 \
  && mkdir expat \
  && tar xJf expat-$EXPAT_VERSION.tar.xz -C expat --strip-components=1 \
@@ -86,32 +81,28 @@ FROM base AS dl-pdcurses
 ARG PDCURSES_VERSION=3.9 \
     PDCURSES_SHA256=590dbe0f5835f66992df096d3602d0271103f90cf8557a5d124f693c2b40d7ec
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://downloads.sourceforge.net/project/pdcurses/pdcurses/$PDCURSES_VERSION/PDCurses-$PDCURSES_VERSION.tar.gz \
- && printf '%s  %s\n' $PDCURSES_SHA256 PDCurses-$PDCURSES_VERSION.tar.gz \
-    | sha256sum -c \
- && mkdir pdcurses \
+ADD --checksum=sha256:$PDCURSES_SHA256 \
+    https://downloads.sourceforge.net/project/pdcurses/pdcurses/$PDCURSES_VERSION/PDCurses-$PDCURSES_VERSION.tar.gz ./
+RUN mkdir pdcurses \
  && tar xzf PDCurses-$PDCURSES_VERSION.tar.gz -C pdcurses --strip-components=1
 
 FROM base AS dl-make
 ARG MAKE_VERSION=4.4.1 \
     MAKE_SHA256=dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://ftp.gnu.org/gnu/make/make-$MAKE_VERSION.tar.gz \
- && printf '%s  %s\n' $MAKE_SHA256 make-$MAKE_VERSION.tar.gz | sha256sum -c \
- && mkdir make \
+ADD --checksum=sha256:$MAKE_SHA256 \
+    https://ftp.gnu.org/gnu/make/make-$MAKE_VERSION.tar.gz ./
+RUN mkdir make \
  && tar xzf make-$MAKE_VERSION.tar.gz -C make --strip-components=1
 
 FROM base AS dl-busybox
 ARG BUSYBOX_VERSION=FRP-6075-g169694ebd \
     BUSYBOX_SHA256=aa953010f16989cec8e165c5ffddaa9f6633f65670e20d5d7678c987d776f1d7
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
+ADD --checksum=sha256:$BUSYBOX_SHA256 \
     https://github.com/rmyorston/busybox-w32/archive/refs/tags/$BUSYBOX_VERSION.tar.gz \
- && printf '%s  %s\n' $BUSYBOX_SHA256 busybox-w32-$BUSYBOX_VERSION.tar.gz \
-    | sha256sum -c \
- && mkdir busybox \
+    busybox-w32-$BUSYBOX_VERSION.tar.gz
+RUN mkdir busybox \
  && tar xzf busybox-w32-$BUSYBOX_VERSION.tar.gz -C busybox --strip-components=1 \
  && echo $BUSYBOX_VERSION >busybox/.frp_describe
 
@@ -119,32 +110,28 @@ FROM base AS dl-vim
 ARG VIM_VERSION=9.0 \
     VIM_SHA256=a6456bc154999d83d0c20d968ac7ba6e7df0d02f3cb6427fb248660bacfb336e
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://mirror.math.princeton.edu/pub/vim/unix/vim-$VIM_VERSION.tar.bz2 \
- && printf '%s  %s\n' $VIM_SHA256 vim-$VIM_VERSION.tar.bz2 | sha256sum -c \
- && mkdir vim \
+ADD --checksum=sha256:$VIM_SHA256 \
+    https://mirror.math.princeton.edu/pub/vim/unix/vim-$VIM_VERSION.tar.bz2 ./
+RUN mkdir vim \
  && tar xjf vim-$VIM_VERSION.tar.bz2 -C vim --strip-components=1
 
 FROM base AS dl-ctags
 ARG CTAGS_VERSION=6.2.1 \
     CTAGS_SHA256=f56829e9a576025e98955597ee967099a871987b3476fbd8dbbc2b9dc921f824
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
+ADD --checksum=sha256:$CTAGS_SHA256 \
     https://github.com/universal-ctags/ctags/archive/refs/tags/v$CTAGS_VERSION.tar.gz \
- && printf '%s  %s\n' $CTAGS_SHA256 ctags-$CTAGS_VERSION.tar.gz | sha256sum -c \
- && mkdir ctags \
+    ctags-$CTAGS_VERSION.tar.gz
+RUN mkdir ctags \
  && tar xzf ctags-$CTAGS_VERSION.tar.gz -C ctags --strip-components=1
 
 FROM base AS dl-zstd
 ARG ZSTD_VERSION=1.5.7 \
     ZSTD_SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://github.com/facebook/zstd/releases/download/v$ZSTD_VERSION/zstd-$ZSTD_VERSION.tar.gz \
- && printf '%s  %s\n' \
-      $ZSTD_SHA256 zstd-$ZSTD_VERSION.tar.gz \
-    | sha256sum -c \
- && mkdir zstd \
+ADD --checksum=sha256:$ZSTD_SHA256 \
+    https://github.com/facebook/zstd/releases/download/v$ZSTD_VERSION/zstd-$ZSTD_VERSION.tar.gz ./
+RUN mkdir zstd \
  && tar xzf zstd-$ZSTD_VERSION.tar.gz -C zstd --strip-components=1
 
 FROM base AS dl-ccache
@@ -153,14 +140,12 @@ ARG CCACHE_VERSION=4.14 \
     XXHASH_VERSION=0.8.3 \
     XXHASH_SHA256=aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://github.com/ccache/ccache/releases/download/v$CCACHE_VERSION/ccache-$CCACHE_VERSION.tar.xz \
+ADD --checksum=sha256:$CCACHE_SHA256 \
+    https://github.com/ccache/ccache/releases/download/v$CCACHE_VERSION/ccache-$CCACHE_VERSION.tar.xz ./
+ADD --checksum=sha256:$XXHASH_SHA256 \
     https://github.com/Cyan4973/xxhash/archive/refs/tags/v$XXHASH_VERSION.tar.gz \
- && printf '%s  %s\n' \
-      $CCACHE_SHA256 ccache-$CCACHE_VERSION.tar.xz \
-      $XXHASH_SHA256 xxHash-$XXHASH_VERSION.tar.gz \
-    | sha256sum -c \
- && mkdir ccache \
+    xxHash-$XXHASH_VERSION.tar.gz
+RUN mkdir ccache \
  && tar xJf ccache-$CCACHE_VERSION.tar.xz -C ccache --strip-components=1 \
  && mkdir xxhash \
  && tar xzf xxHash-$XXHASH_VERSION.tar.gz -C xxhash --strip-components=1
@@ -169,60 +154,55 @@ FROM base AS dl-ninja
 ARG NINJA_VERSION=1.13.2 \
     NINJA_SHA256=974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
+ADD --checksum=sha256:$NINJA_SHA256 \
     https://github.com/ninja-build/ninja/archive/refs/tags/v$NINJA_VERSION.tar.gz \
- && printf '%s  %s\n' $NINJA_SHA256 ninja-$NINJA_VERSION.tar.gz | sha256sum -c \
- && mkdir ninja \
+    ninja-$NINJA_VERSION.tar.gz
+RUN mkdir ninja \
  && tar xzf ninja-$NINJA_VERSION.tar.gz -C ninja --strip-components=1
 
 FROM base AS dl-cmake
 ARG CMAKE_VERSION=4.4.2 \
     CMAKE_SHA256=1db9e61e60b6e0874c86386340b910382f3c5e75b9fbfb44d122063129a2789d
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION.tar.gz \
- && printf '%s  %s\n' $CMAKE_SHA256 cmake-$CMAKE_VERSION.tar.gz | sha256sum -c \
- && mkdir cmake \
+ADD --checksum=sha256:$CMAKE_SHA256 \
+    https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION.tar.gz ./
+RUN mkdir cmake \
  && tar xzf cmake-$CMAKE_VERSION.tar.gz -C cmake --strip-components=1
 
 FROM base AS dl-dcmake
 ARG DCMAKE_VERSION=1.7.1 \
     DCMAKE_SHA256=9d7388088cd03fa7d47e287809f86eee28f02fa6f57bbffa2b556f70dcd8adf9
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://github.com/skeeto/dcmake/releases/download/v$DCMAKE_VERSION/dcmake-$DCMAKE_VERSION.tar.gz \
- && printf '%s  %s\n' $DCMAKE_SHA256 dcmake-$DCMAKE_VERSION.tar.gz | sha256sum -c \
- && mkdir dcmake \
+ADD --checksum=sha256:$DCMAKE_SHA256 \
+    https://github.com/skeeto/dcmake/releases/download/v$DCMAKE_VERSION/dcmake-$DCMAKE_VERSION.tar.gz ./
+RUN mkdir dcmake \
  && tar xzf dcmake-$DCMAKE_VERSION.tar.gz -C dcmake --strip-components=1
 
 FROM base AS dl-7z
 ARG Z7_VERSION=2301 \
     Z7_SHA256=356071007360e5a1824d9904993e8b2480b51b570e8c9faf7c0f58ebe4bf9f74
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://downloads.sourceforge.net/project/sevenzip/7-Zip/23.01/7z$Z7_VERSION-src.tar.xz \
- && printf '%s  %s\n' $Z7_SHA256 7z$Z7_VERSION-src.tar.xz | sha256sum -c \
- && mkdir 7z \
+ADD --checksum=sha256:$Z7_SHA256 \
+    https://downloads.sourceforge.net/project/sevenzip/7-Zip/23.01/7z$Z7_VERSION-src.tar.xz ./
+RUN mkdir 7z \
  && tar xJf 7z$Z7_VERSION-src.tar.xz -C 7z
 
 FROM base AS dl-aas-sign
 ARG AAS_SIGN_VERSION=1.1.0 \
     AAS_SIGN_SHA256=4ba127b0434f6e0f8af639e51a0c961e95b5adeb06391dd6ef02445e0b027c3f
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://github.com/skeeto/aas-sign/releases/download/v$AAS_SIGN_VERSION/aas-sign-$AAS_SIGN_VERSION.tar.gz \
- && printf '%s  %s\n' $AAS_SIGN_SHA256 aas-sign-$AAS_SIGN_VERSION.tar.gz | sha256sum -c \
- && mkdir aas-sign \
+ADD --checksum=sha256:$AAS_SIGN_SHA256 \
+    https://github.com/skeeto/aas-sign/releases/download/v$AAS_SIGN_VERSION/aas-sign-$AAS_SIGN_VERSION.tar.gz ./
+RUN mkdir aas-sign \
  && tar xzf aas-sign-$AAS_SIGN_VERSION.tar.gz -C aas-sign --strip-components=1
 
 FROM base AS dl-nsis
 ARG NSIS_VERSION=3.12 \
     NSIS_SHA256=f3ed7a8e4aa2cf4e8cf47d3b563a02559e0cb4934db2662b2f9661b824e2b186
 WORKDIR /dl
-RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://downloads.sourceforge.net/project/nsis/NSIS%203/$NSIS_VERSION/nsis-$NSIS_VERSION-src.tar.bz2 \
- && printf '%s  %s\n' $NSIS_SHA256 nsis-$NSIS_VERSION-src.tar.bz2 | sha256sum -c \
- && mkdir nsis \
+ADD --checksum=sha256:$NSIS_SHA256 \
+    https://downloads.sourceforge.net/project/nsis/NSIS%203/$NSIS_VERSION/nsis-$NSIS_VERSION-src.tar.bz2 ./
+RUN mkdir nsis \
  && tar xjf nsis-$NSIS_VERSION-src.tar.bz2 -C nsis --strip-components=1
 
 # Build cross-compiler
@@ -977,8 +957,7 @@ RUN printf "id ICON \"$PREFIX/src/w64devkit.ico\"" >w64devkit.rc \
 # at `docker run` time so secrets never enter the build cache.
 FROM final AS signed
 # aas-sign reaches GitHub OIDC and Azure over HTTPS at run time and
-# needs the system trust store. The build stages all pass --insecure
-# to curl, so ca-certificates isn't pulled in by base.
+# needs the system trust store.
 RUN apt-get update \
  && apt-get install --yes --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/*
