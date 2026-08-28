@@ -105,14 +105,15 @@ RUN curl --insecure --location --remote-name-all --remote-header-name \
 
 FROM base AS dl-busybox
 ARG BUSYBOX_VERSION=FRP-6075-g169694ebd \
-    BUSYBOX_SHA256=44401413c86a839deeec3eba088af244a1594f18ff9fd0622811100e4cc2e7b4
+    BUSYBOX_SHA256=aa953010f16989cec8e165c5ffddaa9f6633f65670e20d5d7678c987d776f1d7
 WORKDIR /dl
 RUN curl --insecure --location --remote-name-all --remote-header-name \
-    https://frippery.org/files/busybox/busybox-w32-$BUSYBOX_VERSION.tgz \
- && printf '%s  %s\n' $BUSYBOX_SHA256 busybox-w32-$BUSYBOX_VERSION.tgz \
+    https://github.com/rmyorston/busybox-w32/archive/refs/tags/$BUSYBOX_VERSION.tar.gz \
+ && printf '%s  %s\n' $BUSYBOX_SHA256 busybox-w32-$BUSYBOX_VERSION.tar.gz \
     | sha256sum -c \
  && mkdir busybox \
- && tar xzf busybox-w32-$BUSYBOX_VERSION.tgz -C busybox --strip-components=1
+ && tar xzf busybox-w32-$BUSYBOX_VERSION.tar.gz -C busybox --strip-components=1 \
+ && echo $BUSYBOX_VERSION >busybox/.frp_describe
 
 FROM base AS dl-vim
 ARG VIM_VERSION=9.0 \
