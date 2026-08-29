@@ -526,7 +526,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
 # Create i686 tool aliases
 RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
-        strip uuidgen widl windmc \
+        strip uuidgen windmc \
     | xargs -I{} -P$(nproc) \
           $ARCH-gcc -DEXE={}.exe -DCMD=i686-w64-mingw32-{} \
             -Oz -fno-asynchronous-unwind-tables \
@@ -556,6 +556,11 @@ RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         -DCMD="i686-w64-mingw32-dlltool -m i386 --as-flags=--32" \
         -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/i686-w64-mingw32-dlltool.exe \
+        $PREFIX/src/alias.c -lkernel32 \
+ && $ARCH-gcc -DEXE=widl.exe \
+        -DCMD="i686-w64-mingw32-widl --win32" \
+        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
+        -o $PREFIX/bin/i686-w64-mingw32-widl.exe \
         $PREFIX/src/alias.c -lkernel32 \
  && $ARCH-gcc -DEXE=windres.exe \
         -DCMD="i686-w64-mingw32-windres --target=pe-i386" \
