@@ -210,50 +210,45 @@ RUN mkdir nsis \
 
 FROM dl-cross AS variant-x64
 ENV ARCH=x86_64-w64-mingw32 \
-    ARCH_FLAGS="" \
-    MULTILIB=--disable-multilib \
-    CRT_LIB32=--disable-lib32 \
-    CRT_LIB64=--enable-lib64 \
-    WINNT_FLAGS="" \
-    MANIFEST_FLAGS="" \
-    EXTRA_32=0 \
+    GCC_ARCH_FLAG="" \
+    GCC_MULTILIB=disable \
+    CRT_LIB32=disable \
+    CRT_LIB64=enable \
+    GCC_MANIFEST_FLAG="" \
     BUSYBOX_CONFIG=mingw64u_defconfig \
-    ZSTD_FLAGS="" \
+    ZSTD_THREAD_FLAG="" \
     CMAKE_C_FLAGS="" \
     CMAKE_CXX_FLAGS="" \
     NSIS_ARCH=amd64
 
 FROM dl-cross AS variant-x86
 ENV ARCH=i686-w64-mingw32 \
-    ARCH_FLAGS=--with-arch=pentium4 \
-    MULTILIB=--disable-multilib \
-    CRT_LIB32=--enable-lib32 \
-    CRT_LIB64=--disable-lib64 \
-    WINNT_FLAGS=--with-default-win32-winnt=0x0501 \
-    MANIFEST_FLAGS=--disable-win32-utf8-manifest \
-    EXTRA_32=0 \
+    GCC_ARCH_FLAG=--with-arch=pentium4 \
+    GCC_MULTILIB=disable \
+    CRT_LIB32=enable \
+    CRT_LIB64=disable \
+    GCC_MANIFEST_FLAG=--disable-win32-utf8-manifest \
     BUSYBOX_CONFIG=mingw32w_defconfig \
-    ZSTD_FLAGS=HAVE_THREAD=0 \
+    ZSTD_THREAD_FLAG=HAVE_THREAD=0 \
     CMAKE_C_FLAGS="-O2 -D_WIN32_WINNT=0x0601" \
     CMAKE_CXX_FLAGS="-O2 -D_WIN32_WINNT=0x0601" \
     NSIS_ARCH=x86
 
 FROM dl-cross AS variant-multilib
 ENV ARCH=x86_64-w64-mingw32 \
-    ARCH_FLAGS=--with-arch-32=pentium4 \
-    MULTILIB=--enable-multilib \
-    CRT_LIB32=--enable-lib32 \
-    CRT_LIB64=--enable-lib64 \
-    WINNT_FLAGS="" \
-    MANIFEST_FLAGS="" \
-    EXTRA_32=1 \
+    GCC_ARCH_FLAG=--with-arch-32=pentium4 \
+    GCC_MULTILIB=enable \
+    CRT_LIB32=enable \
+    CRT_LIB64=enable \
+    GCC_MANIFEST_FLAG="" \
     BUSYBOX_CONFIG=mingw64u_defconfig \
-    ZSTD_FLAGS="" \
+    ZSTD_THREAD_FLAG="" \
     CMAKE_C_FLAGS="" \
     CMAKE_CXX_FLAGS="" \
     NSIS_ARCH=amd64
 
 FROM variant-${VARIANT} AS cross
+ARG VARIANT
 
 WORKDIR /dl/binutils
 COPY src/binutils-*.patch $PREFIX/src/
@@ -285,7 +280,6 @@ RUN printf '#include <crtdefs.h>\n#if __has_include_next(<stddef.h>)\n#include_n
         --prefix=/bootstrap \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
-        $WINNT_FLAGS \
  && make -j$(nproc) \
  && make install
 
@@ -298,8 +292,8 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
  && /dl/gcc/configure \
         --prefix=/bootstrap \
         --with-sysroot=/bootstrap \
-        $ARCH_FLAGS \
-        $MULTILIB \
+        $GCC_ARCH_FLAG \
+        --${GCC_MULTILIB}-multilib \
         --target=$ARCH \
         --enable-static \
         --disable-shared \
@@ -332,7 +326,7 @@ RUN mkdir -p $PREFIX/lib \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libchkstk.S \
  && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/ \
- && if [ "$EXTRA_32" = 1 ]; then \
+ && if [ "$VARIANT" = multilib ]; then \
         mkdir -p $PREFIX/lib32 /bootstrap/lib32 \
      && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
             sh $PREFIX/src/libmemory.c \
@@ -349,8 +343,8 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        $CRT_LIB32 \
-        $CRT_LIB64 \
+        --${CRT_LIB32}-lib32 \
+        --${CRT_LIB64}-lib64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
  && make -j$(nproc) \
@@ -369,7 +363,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /x-winpthreads32
-RUN if [ "$EXTRA_32" = 1 ]; then \
+RUN if [ "$VARIANT" = multilib ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=/bootstrap \
             --libdir=/bootstrap/lib32 \
@@ -459,7 +453,6 @@ RUN /dl/mingw/mingw-w64-headers/configure \
         --host=$ARCH \
         --enable-idl \
         --with-default-msvcrt=msvcrt-os \
-        $WINNT_FLAGS \
  && make -j$(nproc) \
  && make install
 
@@ -470,8 +463,8 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        $CRT_LIB32 \
-        $CRT_LIB64 \
+        --${CRT_LIB32}-lib32 \
+        --${CRT_LIB64}-lib64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
  && make -j$(nproc) \
@@ -482,7 +475,7 @@ COPY src/threads.h $PREFIX/include/
 RUN $ARCH-gcc -c -Oz -I$PREFIX/include/ \
         -ffunction-sections -Wa,--no-pad-sections $PREFIX/src/threads.c \
  && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o \
- && if [ "$EXTRA_32" = 1 ]; then \
+ && if [ "$VARIANT" = multilib ]; then \
         $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
             -ffunction-sections -Wa,--no-pad-sections \
             -o threads32.o $PREFIX/src/threads.c \
@@ -502,7 +495,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /winpthreads32
-RUN if [ "$EXTRA_32" = 1 ]; then \
+RUN if [ "$VARIANT" = multilib ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=$PREFIX \
             --libdir=$PREFIX/lib32 \
@@ -524,8 +517,8 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --prefix=$PREFIX \
         --with-sysroot=$PREFIX \
         --with-native-system-header-dir=/include \
-        $ARCH_FLAGS \
-        $MULTILIB \
+        $GCC_ARCH_FLAG \
+        --${GCC_MULTILIB}-multilib \
         --target=$ARCH \
         --host=$ARCH \
         --enable-static \
@@ -544,7 +537,7 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --disable-lto \
         --disable-nls \
         --disable-win32-registry \
-        $MANIFEST_FLAGS \
+        $GCC_MANIFEST_FLAG \
         --enable-mingw-wildcard \
         CFLAGS_FOR_TARGET="-O2" \
         CXXFLAGS_FOR_TARGET="-O2" \
@@ -582,7 +575,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
             -o $PREFIX/bin/$ARCH-{}.exe $PREFIX/src/alias.c -lkernel32
 
 # Create i686 tool aliases
-RUN if [ "$EXTRA_32" = 1 ]; then \
+RUN if [ "$VARIANT" = multilib ]; then \
     printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
         strip uuidgen windmc \
@@ -832,7 +825,7 @@ RUN make -j$(nproc) CC=$ARCH-gcc AR=$ARCH-ar CFLAGS="-O2" libzstd.a \
 
 WORKDIR /dl/zstd
 RUN make -j$(nproc) -C programs zstd \
-        CC=$ARCH-gcc CFLAGS="-O2" LDFLAGS="-s" EXT=.exe $ZSTD_FLAGS \
+        CC=$ARCH-gcc CFLAGS="-O2" LDFLAGS="-s" EXT=.exe $ZSTD_THREAD_FLAG \
  && mkdir -p /out/bin \
  && cp programs/zstd.exe /out/bin/ \
  && $ARCH-gcc -DEXE=zstd.exe -DCMD=unzstd \
