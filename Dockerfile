@@ -540,10 +540,6 @@ RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
             -Wl,--gc-sections -s -nostdlib \
             -o $PREFIX/bin/i686-w64-mingw32-{}.exe \
             $PREFIX/src/alias.c -lkernel32 \
- && $ARCH-gcc -DEXE=g++.exe -DCMD="i686-w64-mingw32-c++ -m32" \
-        -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
-        -o $PREFIX/bin/i686-w64-mingw32-c++.exe \
-        $PREFIX/src/alias.c -lkernel32 \
  && $ARCH-gcc -DEXE=as.exe -DCMD="i686-w64-mingw32-as --32" \
         -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/i686-w64-mingw32-as.exe \
