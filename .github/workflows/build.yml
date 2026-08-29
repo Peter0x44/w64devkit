@@ -97,8 +97,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Apply x86 patch
-        run: patch -p1 -i src/variant-x86.patch
+      - name: Load x86 build args
+        id: variant
+        run: |
+          {
+            echo 'args<<EOF'
+            cat src/variant-x86.args
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate archive name and version string
         id: filename
@@ -112,6 +118,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: ${{ steps.variant.outputs.args }}
           tags: w64devkit:${{ env.ARCH }}
           load: true
           cache-from: type=gha,scope=w64devkit-${{ env.ARCH }}
@@ -175,13 +182,20 @@ jobs:
             > w64devkit-x64-${{ steps.filename.outputs.version }}.7z.exe
           ls -lh w64devkit-x64-${{ steps.filename.outputs.version }}.7z.exe
 
-      - name: Apply x86 patch
-        run: patch -p1 -i src/variant-x86.patch
+      - name: Load x86 build args
+        id: variant
+        run: |
+          {
+            echo 'args<<EOF'
+            cat src/variant-x86.args
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build signed image (x86)
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: ${{ steps.variant.outputs.args }}
           target: signed
           tags: w64devkit:x86-signed
           load: true
