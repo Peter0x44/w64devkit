@@ -53,7 +53,11 @@ cleanup() {
 trap cleanup EXIT
 
 for variant in $arch; do
-    if [ -e "src/variant-$variant.patch" ]; then
+    if [ -e "src/variant-$variant.args" ]; then
+        $dryrun docker build \
+            $(sed 's/^/--build-arg /' "src/variant-$variant.args") \
+            -t $target .
+    elif [ -e "src/variant-$variant.patch" ]; then
         tmp=$(mktemp -d)
         $dryrun cp Dockerfile "$tmp/"
         $dryrun patch "$tmp/Dockerfile" "src/variant-$variant.patch"

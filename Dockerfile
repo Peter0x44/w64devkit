@@ -208,8 +208,29 @@ RUN mkdir nsis \
 # Build cross-compiler
 
 FROM dl-cross AS cross
+
+# Variant configuration. The defaults produce the x64 kit, and a variant
+# is a coherent set of overrides (see src/variant-x86.args). Stages
+# before this point are shared between variants.
 ARG ARCH=x86_64-w64-mingw32
-ENV ARCH=$ARCH
+ARG MULTILIB=--enable-multilib
+ARG ARCH_FLAGS=--with-arch-32=pentium4
+# Not named "LIB64": mingw-w64-crt's configure tests whether a shell
+# variable LIB64 (or LIB32) is set, and ARGs leak into the environment
+# of every RUN, which would force the Win64 runtime on regardless of
+# the --{enable,disable}-lib64 flag.
+ARG CRT_LIB64=--enable-lib64
+ARG WINNT_FLAGS=
+ARG MANIFEST_FLAGS=
+ARG BUSYBOX_CONFIG=mingw64u_defconfig
+ARG ZSTD_FLAGS=
+ARG CMAKE_WINNT=
+ARG NSIS_ARCH=amd64
+ENV ARCH=$ARCH \
+    BUSYBOX_CONFIG=$BUSYBOX_CONFIG \
+    ZSTD_FLAGS=$ZSTD_FLAGS \
+    CMAKE_WINNT=$CMAKE_WINNT \
+    NSIS_ARCH=$NSIS_ARCH
 
 WORKDIR /dl/binutils
 COPY src/binutils-*.patch $PREFIX/src/
@@ -241,6 +262,7 @@ RUN printf '#include <crtdefs.h>\n#if __has_include_next(<stddef.h>)\n#include_n
         --prefix=/bootstrap \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
+        $WINNT_FLAGS \
  && make -j$(nproc) \
  && make install
 
@@ -253,7 +275,8 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
  && /dl/gcc/configure \
         --prefix=/bootstrap \
         --with-sysroot=/bootstrap \
-        --with-arch-32=pentium4 \
+        $ARCH_FLAGS \
+        $MULTILIB \
         --target=$ARCH \
         --enable-static \
         --disable-shared \
@@ -279,19 +302,22 @@ RUN cat $PREFIX/src/gcc-*.patch | patch -d/dl/gcc -p1 \
 ENV PATH="/bootstrap/bin:${PATH}"
 
 COPY src/libmemory.c src/libchkstk.S $PREFIX/src/
-RUN mkdir -p $PREFIX/lib $PREFIX/lib32 /bootstrap/lib32 \
+RUN mkdir -p $PREFIX/lib \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libmemory.c \
  && ln $PREFIX/lib/libmemory.a /bootstrap/lib/ \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libchkstk.S \
  && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/ \
- && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
-        sh $PREFIX/src/libmemory.c \
- && ln $PREFIX/lib32/libmemory.a /bootstrap/lib32/ \
- && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
-        sh $PREFIX/src/libchkstk.S \
- && ln $PREFIX/lib32/libchkstk.a /bootstrap/lib32/
+ && if [ "$MULTILIB" = --enable-multilib ]; then \
+        mkdir -p $PREFIX/lib32 /bootstrap/lib32 \
+     && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
+            sh $PREFIX/src/libmemory.c \
+     && ln $PREFIX/lib32/libmemory.a /bootstrap/lib32/ \
+     && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
+            sh $PREFIX/src/libchkstk.S \
+     && ln $PREFIX/lib32/libchkstk.a /bootstrap/lib32/ ; \
+    fi
 
 WORKDIR /x-mingw-crt
 RUN /dl/mingw/mingw-w64-crt/configure \
@@ -301,7 +327,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
         --enable-lib32 \
-        --enable-lib64 \
+        $CRT_LIB64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
  && make -j$(nproc) \
@@ -320,18 +346,20 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /x-winpthreads32
-RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
-       --prefix=/bootstrap \
-       --libdir=/bootstrap/lib32 \
-       --with-sysroot=/bootstrap \
-       --host=$ARCH \
-       --enable-static \
-       --disable-shared \
-       CC="$ARCH-gcc -m32" \
-       CFLAGS="-O2" \
-       LDFLAGS="-s" \
- && make -j$(nproc) \
- && make install
+RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+        /dl/mingw/mingw-w64-libraries/winpthreads/configure \
+            --prefix=/bootstrap \
+            --libdir=/bootstrap/lib32 \
+            --with-sysroot=/bootstrap \
+            --host=$ARCH \
+            --enable-static \
+            --disable-shared \
+            CC="$ARCH-gcc -m32" \
+            CFLAGS="-O2" \
+            LDFLAGS="-s" \
+     && make -j$(nproc) \
+     && make install ; \
+    fi
 
 WORKDIR /x-gcc
 RUN make -j$(nproc) \
@@ -408,6 +436,7 @@ RUN /dl/mingw/mingw-w64-headers/configure \
         --host=$ARCH \
         --enable-idl \
         --with-default-msvcrt=msvcrt-os \
+        $WINNT_FLAGS \
  && make -j$(nproc) \
  && make install
 
@@ -419,7 +448,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
         --enable-lib32 \
-        --enable-lib64 \
+        $CRT_LIB64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
  && make -j$(nproc) \
@@ -430,10 +459,12 @@ COPY src/threads.h $PREFIX/include/
 RUN $ARCH-gcc -c -Oz -I$PREFIX/include/ \
         -ffunction-sections -Wa,--no-pad-sections $PREFIX/src/threads.c \
  && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o \
- && $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
-        -ffunction-sections -Wa,--no-pad-sections \
-        -o threads32.o $PREFIX/src/threads.c \
- && $ARCH-ar r $PREFIX/lib32/libmingwex.a threads32.o
+ && if [ "$MULTILIB" = --enable-multilib ]; then \
+        $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
+            -ffunction-sections -Wa,--no-pad-sections \
+            -o threads32.o $PREFIX/src/threads.c \
+     && $ARCH-ar r $PREFIX/lib32/libmingwex.a threads32.o ; \
+    fi
 
 WORKDIR /winpthreads
 RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
@@ -448,18 +479,20 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /winpthreads32
-RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
-       --prefix=$PREFIX \
-       --libdir=$PREFIX/lib32 \
-       --with-sysroot=$PREFIX \
-       --host=$ARCH \
-       --enable-static \
-       --disable-shared \
-       CC="$ARCH-gcc -m32" \
-       CFLAGS="-O2" \
-       LDFLAGS="-s" \
- && make -j$(nproc) \
- && make install
+RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+        /dl/mingw/mingw-w64-libraries/winpthreads/configure \
+            --prefix=$PREFIX \
+            --libdir=$PREFIX/lib32 \
+            --with-sysroot=$PREFIX \
+            --host=$ARCH \
+            --enable-static \
+            --disable-shared \
+            CC="$ARCH-gcc -m32" \
+            CFLAGS="-O2" \
+            LDFLAGS="-s" \
+     && make -j$(nproc) \
+     && make install ; \
+    fi
 
 WORKDIR /gcc
 COPY src/crossgcc-*.patch $PREFIX/src/
@@ -468,7 +501,8 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --prefix=$PREFIX \
         --with-sysroot=$PREFIX \
         --with-native-system-header-dir=/include \
-        --with-arch-32=pentium4 \
+        $ARCH_FLAGS \
+        $MULTILIB \
         --target=$ARCH \
         --host=$ARCH \
         --enable-static \
@@ -487,6 +521,7 @@ RUN cat $PREFIX/src/crossgcc-*.patch | patch -d/dl/gcc -p1 \
         --disable-lto \
         --disable-nls \
         --disable-win32-registry \
+        $MANIFEST_FLAGS \
         --enable-mingw-wildcard \
         CFLAGS_FOR_TARGET="-O2" \
         CXXFLAGS_FOR_TARGET="-O2" \
@@ -524,7 +559,8 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
             -o $PREFIX/bin/$ARCH-{}.exe $PREFIX/src/alias.c -lkernel32
 
 # Create i686 tool aliases
-RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
+RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+    printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
         strip uuidgen windmc \
     | xargs -I{} -P$(nproc) \
@@ -562,7 +598,8 @@ RUN printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         -DCMD="i686-w64-mingw32-windres --target=pe-i386" \
         -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/i686-w64-mingw32-windres.exe \
-        $PREFIX/src/alias.c -lkernel32
+        $PREFIX/src/alias.c -lkernel32 ; \
+    fi
 
 # Build some extra development tools
 
@@ -677,7 +714,7 @@ COPY --from=dl-busybox /dl/ /dl/
 WORKDIR /dl/busybox
 COPY src/busybox-* $PREFIX/src/
 RUN cat $PREFIX/src/busybox-*.patch | patch -p1 \
- && make mingw64u_defconfig \
+ && make $BUSYBOX_CONFIG \
  && sed -ri 's/^(CONFIG_AR)=y/\1=n/' .config \
  && sed -ri 's/^(CONFIG_ASCII)=y/\1=n/' .config \
  && sed -ri -e 's/^(CONFIG_BASH_IS_ASH)=y/\1=n/' \
@@ -772,7 +809,7 @@ RUN make -j$(nproc) CC=$ARCH-gcc AR=$ARCH-ar CFLAGS="-O2" libzstd.a \
 
 WORKDIR /dl/zstd
 RUN make -j$(nproc) -C programs zstd \
-        CC=$ARCH-gcc CFLAGS="-O2" LDFLAGS="-s" EXT=.exe \
+        CC=$ARCH-gcc CFLAGS="-O2" LDFLAGS="-s" EXT=.exe $ZSTD_FLAGS \
  && mkdir -p /out/bin \
  && cp programs/zstd.exe /out/bin/ \
  && $ARCH-gcc -DEXE=zstd.exe -DCMD=unzstd \
@@ -867,7 +904,11 @@ COPY --from=build-pdcurses /deps/include/curses.h /deps/include/
 WORKDIR /cmake
 COPY src/cmake-*.patch $PREFIX/src/
 RUN cat $PREFIX/src/cmake-*.patch | patch -d/dl/cmake -p1 \
- && cmake -DCMAKE_BUILD_TYPE=Release \
+ && if [ -n "$CMAKE_WINNT" ]; then \
+        set -- -DCMAKE_C_FLAGS="-O2 -D_WIN32_WINNT=$CMAKE_WINNT" \
+               -DCMAKE_CXX_FLAGS="-O2 -D_WIN32_WINNT=$CMAKE_WINNT" ; \
+    fi \
+ && cmake "$@" -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_SYSTEM_NAME=Windows \
         -DCMAKE_C_COMPILER=$ARCH-gcc \
         -DCMAKE_CXX_COMPILER=$ARCH-g++ \
@@ -932,7 +973,7 @@ RUN sed -i 's/\r$//' Source/build.cpp \
  && cat $PREFIX/src/nsis-*.patch | patch -p1 \
  && scons -j$(nproc) \
         XGCC_W32_PREFIX=$ARCH- \
-        TARGET_ARCH=amd64 \
+        TARGET_ARCH=$NSIS_ARCH \
         PREFIX=$PREFIX \
         PREFIX_BIN=$PREFIX/share/nsis/bin \
         PREFIX_DATA=$PREFIX/share/nsis \
