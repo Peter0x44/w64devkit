@@ -8,27 +8,29 @@
 #   $ ./multibuild.sh -as "$(git describe | tr v -)"
 
 set -e
-arch=
+variants=
 dryrun=
 suffix="$(git describe --exact-match 2>/dev/null | tr v - || true)"
 
 usage() {
     cat <<EOF
-usage: multibuild.sh [-48ahn] [-s SUFFIX]
+usage: multibuild.sh [-48ahmn] [-s SUFFIX]
   -4         Enable x86 build
   -8         Enable x64 build
-  -a         All architectures
+  -a         All variants
+  -m         Enable multilib build
   -h         Print this help message
   -n         Dry run, print commands but do nothing
   -s SUFFIX  Append a version suffix (default: auto from git tag)
 EOF
 }
 
-while getopts 48ahns: opt; do
+while getopts 48ahmns: opt; do
     case $opt in
-        4) arch="$arch x86";;
-        8) arch="$arch x64";;
-        a) arch="x64 x86";;
+        4) variants="$variants x86";;
+        8) variants="$variants x64";;
+        a) variants="x64 x86 multilib";;
+        m) variants="$variants multilib";;
         h) usage; exit 0;;
         n) dryrun=echo;;
         s) suffix="$OPTARG";;
@@ -43,29 +45,15 @@ if [ $# -gt 0 ]; then
     exit 1
 fi
 
-: ${arch:=x64}
-tmp=
+: ${variants:=x64}
 target="tmp-w64-$$"
 cleanup() {
-    rm -rf -- "$tmp"
     $dryrun docker rmi --no-prune $target 2>/dev/null || true
 }
 trap cleanup EXIT
 
-for variant in $arch; do
-    if [ -e "src/variant-$variant.args" ]; then
-        $dryrun docker build \
-            $(sed 's/^/--build-arg /' "src/variant-$variant.args") \
-            -t $target .
-    elif [ -e "src/variant-$variant.patch" ]; then
-        tmp=$(mktemp -d)
-        $dryrun cp Dockerfile "$tmp/"
-        $dryrun patch "$tmp/Dockerfile" "src/variant-$variant.patch"
-        $dryrun docker build -f "$tmp/Dockerfile" -t $target .
-        rm -rf -- "$tmp"
-    else
-        $dryrun docker build -t $target .
-    fi
+for variant in $variants; do
+    $dryrun docker build --build-arg VARIANT=$variant -t $target .
     out="w64devkit-$variant$suffix.7z.exe"
     if [ -n "$dryrun" ]; then
         $dryrun docker run --rm $target ">$out"

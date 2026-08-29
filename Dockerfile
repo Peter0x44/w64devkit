@@ -1,5 +1,6 @@
 ARG VERSION=2.9.1 \
     PREFIX=/w64devkit
+ARG VARIANT=x64
 
 FROM debian:trixie-slim AS base
 ARG PREFIX
@@ -207,30 +208,52 @@ RUN mkdir nsis \
 
 # Build cross-compiler
 
-FROM dl-cross AS cross
+FROM dl-cross AS variant-x64
+ENV ARCH=x86_64-w64-mingw32 \
+    ARCH_FLAGS="" \
+    MULTILIB=--disable-multilib \
+    CRT_LIB32=--disable-lib32 \
+    CRT_LIB64=--enable-lib64 \
+    WINNT_FLAGS="" \
+    MANIFEST_FLAGS="" \
+    EXTRA_32=0 \
+    BUSYBOX_CONFIG=mingw64u_defconfig \
+    ZSTD_FLAGS="" \
+    CMAKE_C_FLAGS="" \
+    CMAKE_CXX_FLAGS="" \
+    NSIS_ARCH=amd64
 
-# Variant configuration. The defaults produce the x64 kit, and a variant
-# is a coherent set of overrides (see src/variant-x86.args). Stages
-# before this point are shared between variants.
-ARG ARCH=x86_64-w64-mingw32
-ARG MULTILIB=--enable-multilib
-ARG ARCH_FLAGS=--with-arch-32=pentium4
-# Not named "LIB64": mingw-w64-crt's configure tests whether a shell
-# variable LIB64 (or LIB32) is set, and ARGs leak into the environment
-# of every RUN, which would force the Win64 runtime on regardless of
-# the --{enable,disable}-lib64 flag.
-ARG CRT_LIB64=--enable-lib64
-ARG WINNT_FLAGS=
-ARG MANIFEST_FLAGS=
-ARG BUSYBOX_CONFIG=mingw64u_defconfig
-ARG ZSTD_FLAGS=
-ARG CMAKE_WINNT=
-ARG NSIS_ARCH=amd64
-ENV ARCH=$ARCH \
-    BUSYBOX_CONFIG=$BUSYBOX_CONFIG \
-    ZSTD_FLAGS=$ZSTD_FLAGS \
-    CMAKE_WINNT=$CMAKE_WINNT \
-    NSIS_ARCH=$NSIS_ARCH
+FROM dl-cross AS variant-x86
+ENV ARCH=i686-w64-mingw32 \
+    ARCH_FLAGS=--with-arch=pentium4 \
+    MULTILIB=--disable-multilib \
+    CRT_LIB32=--enable-lib32 \
+    CRT_LIB64=--disable-lib64 \
+    WINNT_FLAGS=--with-default-win32-winnt=0x0501 \
+    MANIFEST_FLAGS=--disable-win32-utf8-manifest \
+    EXTRA_32=0 \
+    BUSYBOX_CONFIG=mingw32w_defconfig \
+    ZSTD_FLAGS=HAVE_THREAD=0 \
+    CMAKE_C_FLAGS="-O2 -D_WIN32_WINNT=0x0601" \
+    CMAKE_CXX_FLAGS="-O2 -D_WIN32_WINNT=0x0601" \
+    NSIS_ARCH=x86
+
+FROM dl-cross AS variant-multilib
+ENV ARCH=x86_64-w64-mingw32 \
+    ARCH_FLAGS=--with-arch-32=pentium4 \
+    MULTILIB=--enable-multilib \
+    CRT_LIB32=--enable-lib32 \
+    CRT_LIB64=--enable-lib64 \
+    WINNT_FLAGS="" \
+    MANIFEST_FLAGS="" \
+    EXTRA_32=1 \
+    BUSYBOX_CONFIG=mingw64u_defconfig \
+    ZSTD_FLAGS="" \
+    CMAKE_C_FLAGS="" \
+    CMAKE_CXX_FLAGS="" \
+    NSIS_ARCH=amd64
+
+FROM variant-${VARIANT} AS cross
 
 WORKDIR /dl/binutils
 COPY src/binutils-*.patch $PREFIX/src/
@@ -309,7 +332,7 @@ RUN mkdir -p $PREFIX/lib \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libchkstk.S \
  && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/ \
- && if [ "$MULTILIB" = --enable-multilib ]; then \
+ && if [ "$EXTRA_32" = 1 ]; then \
         mkdir -p $PREFIX/lib32 /bootstrap/lib32 \
      && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
             sh $PREFIX/src/libmemory.c \
@@ -326,7 +349,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        --enable-lib32 \
+        $CRT_LIB32 \
         $CRT_LIB64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
@@ -346,7 +369,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /x-winpthreads32
-RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+RUN if [ "$EXTRA_32" = 1 ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=/bootstrap \
             --libdir=/bootstrap/lib32 \
@@ -447,7 +470,7 @@ RUN /dl/mingw/mingw-w64-crt/configure \
         --host=$ARCH \
         --with-default-msvcrt=msvcrt-os \
         --disable-dependency-tracking \
-        --enable-lib32 \
+        $CRT_LIB32 \
         $CRT_LIB64 \
         CFLAGS="-O2" \
         LDFLAGS="-s" \
@@ -459,7 +482,7 @@ COPY src/threads.h $PREFIX/include/
 RUN $ARCH-gcc -c -Oz -I$PREFIX/include/ \
         -ffunction-sections -Wa,--no-pad-sections $PREFIX/src/threads.c \
  && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o \
- && if [ "$MULTILIB" = --enable-multilib ]; then \
+ && if [ "$EXTRA_32" = 1 ]; then \
         $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
             -ffunction-sections -Wa,--no-pad-sections \
             -o threads32.o $PREFIX/src/threads.c \
@@ -479,7 +502,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /winpthreads32
-RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+RUN if [ "$EXTRA_32" = 1 ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=$PREFIX \
             --libdir=$PREFIX/lib32 \
@@ -559,7 +582,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
             -o $PREFIX/bin/$ARCH-{}.exe $PREFIX/src/alias.c -lkernel32
 
 # Create i686 tool aliases
-RUN if [ "$MULTILIB" = --enable-multilib ]; then \
+RUN if [ "$EXTRA_32" = 1 ]; then \
     printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
         strip uuidgen windmc \
@@ -904,11 +927,9 @@ COPY --from=build-pdcurses /deps/include/curses.h /deps/include/
 WORKDIR /cmake
 COPY src/cmake-*.patch $PREFIX/src/
 RUN cat $PREFIX/src/cmake-*.patch | patch -d/dl/cmake -p1 \
- && if [ -n "$CMAKE_WINNT" ]; then \
-        set -- -DCMAKE_C_FLAGS="-O2 -D_WIN32_WINNT=$CMAKE_WINNT" \
-               -DCMAKE_CXX_FLAGS="-O2 -D_WIN32_WINNT=$CMAKE_WINNT" ; \
-    fi \
- && cmake "$@" -DCMAKE_BUILD_TYPE=Release \
+ && cmake -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+        -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" \
+        -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_SYSTEM_NAME=Windows \
         -DCMAKE_C_COMPILER=$ARCH-gcc \
         -DCMAKE_CXX_COMPILER=$ARCH-g++ \
