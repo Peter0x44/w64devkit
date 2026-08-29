@@ -351,7 +351,7 @@ RUN /dl/binutils/configure \
         LDFLAGS="-s" \
  && make MAKEINFO=true tooldir=$PREFIX -j$(nproc) \
  && make MAKEINFO=true tooldir=$PREFIX install \
- && rm $PREFIX/bin/elfedit.exe $PREFIX/bin/readelf.exe
+ && rm $PREFIX/bin/dllwrap.exe $PREFIX/bin/elfedit.exe $PREFIX/bin/readelf.exe
 
 WORKDIR /gmp
 RUN /dl/gmp/configure \
@@ -513,7 +513,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
  && $ARCH-gcc -DEXE=gcc.exe -DCMD="cc -ansi" \
         -Oz -fno-asynchronous-unwind-tables -Wl,--gc-sections -s -nostdlib \
         -o $PREFIX/bin/c89.exe $PREFIX/src/alias.c -lkernel32 \
- && printf '%s\n' addr2line ar as c++filt cpp dlltool dllwrap g++ \
+ && printf '%s\n' addr2line ar as c++filt cpp dlltool g++ \
       gcc gcc-ar gcc-nm gcc-ranlib gcov gcov-dump gcov-tool gendef gfortran \
       ld nm objcopy objdump ranlib size strings strip uuidgen widl \
       windmc windres \
