@@ -184,7 +184,7 @@ ARG Z7_VERSION=2301 \
     Z7_SHA256=356071007360e5a1824d9904993e8b2480b51b570e8c9faf7c0f58ebe4bf9f74
 WORKDIR /dl
 ADD --checksum=sha256:$Z7_SHA256 \
-    https://downloads.sourceforge.net/project/sevenzip/7-Zip/23.01/7z$Z7_VERSION-src.tar.xz ./
+    https://www.7-zip.org/a/7z$Z7_VERSION-src.tar.xz ./
 RUN mkdir 7z \
  && tar xJf 7z$Z7_VERSION-src.tar.xz -C 7z
 
