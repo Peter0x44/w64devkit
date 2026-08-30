@@ -1085,8 +1085,15 @@ COPY --from=build-aas-sign /out/usr/local/bin/aas-sign /usr/local/bin/aas-sign
 COPY src/sign-and-pack.sh /
 CMD ["sh", "/sign-and-pack.sh"]
 
-# Default target: unsigned package, behaviorally identical to the old
-# `final` (which packed and cat'd the SFX).
-FROM final AS pack
-RUN 7z a -mx=9 -mtm=- w64devkit.7z $PREFIX
-CMD ["cat", "/7z/7z.sfx", "w64devkit.7z"]
+# Package once, then expose either the artifact directly or the historical
+# runnable image interface used by multibuild.sh.
+FROM final AS pack-base
+RUN 7z a -mx=9 -mtm=- /w64devkit.7z $PREFIX \
+ && cat /7z/7z.sfx /w64devkit.7z > /w64devkit.7z.exe \
+ && rm /w64devkit.7z
+
+FROM scratch AS artifact
+COPY --from=pack-base /w64devkit.7z.exe /
+
+FROM pack-base AS pack
+CMD ["cat", "/w64devkit.7z.exe"]
