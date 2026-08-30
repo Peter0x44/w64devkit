@@ -210,9 +210,9 @@ RUN mkdir nsis \
 
 FROM dl-cross AS variant-x64
 ENV ARCH=x86_64-w64-mingw32 \
-    GCC_ARCH_FLAG="" \
-    GCC_MULTILIB=disable \
-    CRT_LIB32=disable \
+    GCC_ARCH_FLAG=--with-arch-32=pentium4 \
+    GCC_MULTILIB=enable \
+    CRT_LIB32=enable \
     CRT_LIB64=enable \
     GCC_MANIFEST_FLAG="" \
     BUSYBOX_CONFIG=mingw64u_defconfig \
@@ -234,21 +234,7 @@ ENV ARCH=i686-w64-mingw32 \
     CMAKE_CXX_FLAGS="-O2 -D_WIN32_WINNT=0x0601" \
     NSIS_ARCH=x86
 
-FROM dl-cross AS variant-multilib
-ENV ARCH=x86_64-w64-mingw32 \
-    GCC_ARCH_FLAG=--with-arch-32=pentium4 \
-    GCC_MULTILIB=enable \
-    CRT_LIB32=enable \
-    CRT_LIB64=enable \
-    GCC_MANIFEST_FLAG="" \
-    BUSYBOX_CONFIG=mingw64u_defconfig \
-    ZSTD_THREAD_FLAG="" \
-    CMAKE_C_FLAGS="" \
-    CMAKE_CXX_FLAGS="" \
-    NSIS_ARCH=amd64
-
 FROM variant-${VARIANT} AS cross
-ARG VARIANT
 
 WORKDIR /dl/binutils
 COPY src/binutils-*.patch $PREFIX/src/
@@ -326,7 +312,7 @@ RUN mkdir -p $PREFIX/lib \
  && CC=$ARCH-gcc AR=$ARCH-ar DESTDIR=$PREFIX/lib/ \
         sh $PREFIX/src/libchkstk.S \
  && ln $PREFIX/lib/libchkstk.a /bootstrap/lib/ \
- && if [ "$VARIANT" = multilib ]; then \
+ && if [ "$GCC_MULTILIB" = enable ]; then \
         mkdir -p $PREFIX/lib32 /bootstrap/lib32 \
      && CC="$ARCH-gcc -m32" AR=$ARCH-ar DESTDIR=$PREFIX/lib32/ \
             sh $PREFIX/src/libmemory.c \
@@ -363,7 +349,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /x-winpthreads32
-RUN if [ "$VARIANT" = multilib ]; then \
+RUN if [ "$GCC_MULTILIB" = enable ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=/bootstrap \
             --libdir=/bootstrap/lib32 \
@@ -475,7 +461,7 @@ COPY src/threads.h $PREFIX/include/
 RUN $ARCH-gcc -c -Oz -I$PREFIX/include/ \
         -ffunction-sections -Wa,--no-pad-sections $PREFIX/src/threads.c \
  && $ARCH-ar r $PREFIX/lib/libmingwex.a threads.o \
- && if [ "$VARIANT" = multilib ]; then \
+ && if [ "$GCC_MULTILIB" = enable ]; then \
         $ARCH-gcc -m32 -c -Oz -I$PREFIX/include/ \
             -ffunction-sections -Wa,--no-pad-sections \
             -o threads32.o $PREFIX/src/threads.c \
@@ -495,7 +481,7 @@ RUN /dl/mingw/mingw-w64-libraries/winpthreads/configure \
  && make install
 
 WORKDIR /winpthreads32
-RUN if [ "$VARIANT" = multilib ]; then \
+RUN if [ "$GCC_MULTILIB" = enable ]; then \
         /dl/mingw/mingw-w64-libraries/winpthreads/configure \
             --prefix=$PREFIX \
             --libdir=$PREFIX/lib32 \
@@ -575,7 +561,7 @@ RUN $ARCH-gcc -DEXE=gcc.exe -DCMD=cc \
             -o $PREFIX/bin/$ARCH-{}.exe $PREFIX/src/alias.c -lkernel32
 
 # Create i686 tool aliases
-RUN if [ "$VARIANT" = multilib ]; then \
+RUN if [ "$GCC_MULTILIB" = enable ]; then \
     printf '%s\n' addr2line ar c++filt gcc-ar gcc-nm gcc-ranlib gcov \
         gcov-dump gcov-tool gendef nm objcopy objdump ranlib size strings \
         strip uuidgen windmc \

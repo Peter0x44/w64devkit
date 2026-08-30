@@ -29,13 +29,12 @@ Build the image, then run it to produce a self-extracting 7z archive:
     docker build -t w64devkit .
     docker run --rm w64devkit >w64devkit-x64.exe
 
-The default variant is `x64`. Select a standalone x86 or combined multilib
-toolchain with a build argument:
+The default `x64` variant is a combined x64/x86 multilib toolchain. Select a
+standalone x86 toolchain with a build argument:
 
     docker build --build-arg VARIANT=x86 -t w64devkit .
-    docker build --build-arg VARIANT=multilib -t w64devkit .
 
-`multibuild.sh -a` builds all three variants.
+`multibuild.sh -a` builds both variants.
 
 This takes about 15 minutes on modern systems. You will need an internet
 connection during the first few minutes of the build. **Note:** Do not use

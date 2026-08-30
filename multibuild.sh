@@ -14,23 +14,21 @@ suffix="$(git describe --exact-match 2>/dev/null | tr v - || true)"
 
 usage() {
     cat <<EOF
-usage: multibuild.sh [-48ahmn] [-s SUFFIX]
+usage: multibuild.sh [-48ahn] [-s SUFFIX]
   -4         Enable x86 build
   -8         Enable x64 build
   -a         All variants
-  -m         Enable multilib build
   -h         Print this help message
   -n         Dry run, print commands but do nothing
   -s SUFFIX  Append a version suffix (default: auto from git tag)
 EOF
 }
 
-while getopts 48ahmns: opt; do
+while getopts 48ahns: opt; do
     case $opt in
         4) variants="$variants x86";;
         8) variants="$variants x64";;
-        a) variants="x64 x86 multilib";;
-        m) variants="$variants multilib";;
+        a) variants="x64 x86";;
         h) usage; exit 0;;
         n) dryrun=echo;;
         s) suffix="$OPTARG";;
